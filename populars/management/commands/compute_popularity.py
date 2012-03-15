@@ -34,9 +34,12 @@ class Command(NoArgsCommand):
             print '\nUpdate started at: '+str(now)
             
             #Computing popularity
-            update_popularity(counter_queryset, now)
+            nbr_objs = update_popularity(counter_queryset, now)
+            print "%d objects updated" % nbr_objs
 
             print "The operation took %s" % get_time_from_seconds((datetime.datetime.now()-now).seconds)
+        else:
+            print "O objects updated"
         
 
 def update_popularity(counter_queryset, now):
@@ -54,7 +57,7 @@ def update_popularity(counter_queryset, now):
 
             # Updating Popularity objects
             Popularity.objects.update_popularity(popularity, popularity.get_popularity(created_at, modified_at, now, hits, comments, favorites, likes))
-
+    return counter_queryset.count()
 
 def get_time_from_seconds(seconds):
     hrs = int(seconds/3600)
