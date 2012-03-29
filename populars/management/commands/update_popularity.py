@@ -1,8 +1,6 @@
 import datetime
 from django.core.management.base import NoArgsCommand
 
-from populars.models import Popularity
-
 
 class Command(NoArgsCommand):
     help = "Can be run as a cronjob or directly to update popularity on all objects tracked via django-hitcount or django-popularity."
@@ -36,6 +34,7 @@ class Command(NoArgsCommand):
 
 
 def update_popularity(counter_queryset, now):
+    from populars.models import Popularity
 
     for counter_object in counter_queryset:
         if counter_object.content_object:
