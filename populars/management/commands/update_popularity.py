@@ -5,13 +5,9 @@ from populars.models import Popularity
 
 
 class Command(NoArgsCommand):
-    """
-    This management command should be setup as a cron job and run daily.
-    Updates the popularity of an object.
-    """
-    help = 'Recomputes the popularity of all objects'
+    help = "Can be run as a cronjob or directly to update popularity on all objects tracked via django-hitcount or django-popularity."
 
-    def handle(self, **options):
+    def handle_noargs(self, **options):
         from django.conf import settings
 
         counter_queryset = None
