@@ -1,5 +1,5 @@
 import datetime
-from django.core.management.base import NoArgsCommand
+from django.core.management.base import NoArgsCommand, CommandError
 
 
 class Command(NoArgsCommand):
@@ -7,55 +7,36 @@ class Command(NoArgsCommand):
 
     def handle_noargs(self, **options):
         from django.conf import settings
+        from populars.models import Popularity
 
-        counter_queryset = None
+        verbosity = int(options.get('verbosity', 1))
+
         if 'hitcount' in settings.INSTALLED_APPS:
             from hitcount.models import HitCount
-            counter_queryset = HitCount.objects.all()
-
+            queryset = HitCount.objects.all()
         elif 'popularity' in settings.INSTALLED_APPS:
             from popularity.models import ViewTracker
-            counter_queryset = ViewTracker.objects.all()
+            queryset = ViewTracker.objects.all()
         else:
-            print 'Hitcount or Popularity not installed !'
+            raise CommandError("django-hitcount or django-popularity should be installed first.")
 
-        if counter_queryset:
-            now = datetime.datetime.now()
-            print "\nUpdate started at: %s" % str(now)
+        for track in queryset:
+            obj = track.content_object
+            popular, created = Popularity.objects.get_or_create(
+                content_type=track.content_type,
+                object_pk=track.object_pk
+            )
 
-            #Computing popularity
-            nbr_objs = update_popularity(counter_queryset, now)
-            print "%d objects updated" % nbr_objs
+            created_at = obj.created_at
+            modified_at = obj.modified_at
+            hits = obj.hits
+            comments = getattr(obj, 'comments', 0)
+            favorites = getattr(obj, 'favorites', 0)
+            likes = getattr(obj, 'likes', 0)
 
-            time_elapsed = get_time_from_seconds((datetime.datetime.now() - now).seconds)
-            print "The operation took %s" % time_elapsed
-        else:
-            print "0 objects updated"
+            popular.set_popularity(created_at, modified_at,
+                datetime.datetime.now(), hits, comments, favorites, likes)
+            popular.save()
 
-
-def update_popularity(counter_queryset, now):
-    from populars.models import Popularity
-
-    for counter_object in counter_queryset:
-        if counter_object.content_object:
-            obj, created = Popularity.objects.get_or_create(content_type=counter_object.content_type, object_pk=counter_object.object_pk)
-
-            created_at = counter_object.content_object.created_at
-            modified_at = counter_object.content_object.modified_at
-            hits = counter_object.content_object.hits
-            comments = getattr(counter_object.content_object, 'comments', 0)
-            favorites = getattr(counter_object.content_object, 'favorites', 0)
-            likes = getattr(counter_object.content_object, 'likes', 0)
-
-            # Updating Popularity objects
-            popularity = obj.get_popularity(created_at, modified_at, now,
-                hits, comments, favorites, likes)
-            Popularity.objects.update_popularity(obj, popularity)
-    return counter_queryset.count()
-
-
-def get_time_from_seconds(seconds):
-    hrs = int(seconds / 3600)
-    mins = int(seconds % 3600) / 60
-    secs = seconds - mins * 60 - hrs * 3600
-    return "%dh:%dm:%ds" % (hrs, mins, secs)
+        if verbosity:
+            print "%d objects updated" % queryset.count()
