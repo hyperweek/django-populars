@@ -1,17 +1,13 @@
 import datetime
 from django.core.management.base import NoArgsCommand
-from django.contrib.contenttypes.models import ContentType
 
 from populars.models import Popularity
+
 
 class Command(NoArgsCommand):
     """
     This management command should be setup as a cron job and run daily.
     Updates the popularity of an object.
-
-    Example:
-
-        python manage.py compute_popularity
     """
     help = 'Recomputes the popularity of all objects'
 
@@ -31,36 +27,40 @@ class Command(NoArgsCommand):
 
         if counter_queryset:
             now = datetime.datetime.now()
-            print '\nUpdate started at: '+str(now)
-            
+            print "\nUpdate started at: %s" % str(now)
+
             #Computing popularity
             nbr_objs = update_popularity(counter_queryset, now)
             print "%d objects updated" % nbr_objs
 
-            print "The operation took %s" % get_time_from_seconds((datetime.datetime.now()-now).seconds)
+            time_elapsed = get_time_from_seconds((datetime.datetime.now() - now).seconds)
+            print "The operation took %s" % time_elapsed
         else:
-            print "O objects updated"
-        
+            print "0 objects updated"
+
 
 def update_popularity(counter_queryset, now):
 
     for counter_object in counter_queryset:
         if counter_object.content_object:
-            popularity, created = Popularity.objects.get_or_create(content_type=counter_object.content_type, object_pk=counter_object.object_pk)
+            obj, created = Popularity.objects.get_or_create(content_type=counter_object.content_type, object_pk=counter_object.object_pk)
 
             created_at = counter_object.content_object.created_at
             modified_at = counter_object.content_object.modified_at
             hits = counter_object.content_object.hits
-            comments = counter_object.content_object.comments if hasattr(counter_object.content_object, 'comments') else 0
-            favorites = counter_object.content_object.favorites if hasattr(counter_object.content_object, 'favorites') else 0
-            likes = counter_object.content_object.likes if hasattr(counter_object.content_object, 'likes') else 0
+            comments = getattr(counter_object.content_object, 'comments', 0)
+            favorites = getattr(counter_object.content_object, 'favorites', 0)
+            likes = getattr(counter_object.content_object, 'likes', 0)
 
             # Updating Popularity objects
-            Popularity.objects.update_popularity(popularity, popularity.get_popularity(created_at, modified_at, now, hits, comments, favorites, likes))
+            popularity = obj.get_popularity(created_at, modified_at, now,
+                hits, comments, favorites, likes)
+            Popularity.objects.update_popularity(obj, popularity)
     return counter_queryset.count()
 
+
 def get_time_from_seconds(seconds):
-    hrs = int(seconds/3600)
-    mins = int(seconds % 3600)/60
-    secs = seconds-mins*60-hrs*3600
-    return "%dh:%dm:%ds"%(hrs, mins, secs)
+    hrs = int(seconds / 3600)
+    mins = int(seconds % 3600) / 60
+    secs = seconds - mins * 60 - hrs * 3600
+    return "%dh:%dm:%ds" % (hrs, mins, secs)
