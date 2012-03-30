@@ -22,21 +22,26 @@ class Command(NoArgsCommand):
 
         for track in queryset:
             obj = track.content_object
-            popular, created = Popularity.objects.get_or_create(
-                content_type=track.content_type,
-                object_pk=track.object_pk
-            )
+            if obj:
+                popular, created = Popularity.objects.get_or_create(
+                    content_type=track.content_type,
+                    object_pk=track.object_pk
+                )
 
-            created_at = obj.created_at
-            modified_at = obj.modified_at
-            hits = obj.hits
-            comments = getattr(obj, 'comments', 0)
-            favorites = getattr(obj, 'favorites', 0)
-            likes = getattr(obj, 'likes', 0)
+                created_at = obj.created_at
+                modified_at = obj.modified_at
+                hits = obj.hits
+                comments = getattr(obj, 'comments', 0)
+                favorites = getattr(obj, 'favorites', 0)
+                likes = getattr(obj, 'likes', 0)
 
-            popular.set_popularity(created_at, modified_at,
-                datetime.datetime.now(), hits, comments, favorites, likes)
-            popular.save()
+                popular.set_popularity(created_at, modified_at,
+                    datetime.datetime.now(), hits, comments, favorites, likes)
+                popular.save()
+            else:
+                # normally, the code should not pass there
+                # unless some inconsistency in the database
+                track.delete()
 
         if verbosity:
             print "%d objects updated" % queryset.count()
